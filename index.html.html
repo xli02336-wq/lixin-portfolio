@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="format-detection" content="telephone=no">
+<title>LIXIN — AIGC Video Director</title>
+<meta name="description" content="李新｜AIGC视频导演 / AI影像创作者 / 剪辑师">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050505;
+  --bg-sec:#080808;
+  --bg-card:#0c0c0c;
+  --text:#f0ede8;
+  --text-sec:#7a7a7a;
+  --text-dim:#444;
+  --accent:#c9a96e;
+  --accent-dim:#8a7348;
+  --border:#151515;
+  --ease:cubic-bezier(0.25,0.46,0.45,0.94);
+  --ease-slow:cubic-bezier(0.65,0,0.35,1);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:smooth;font-size:16px}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:#222;border-radius:2px}
+
+/* Preloader */
+#preloader{position:fixed;inset:0;z-index:99999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 1.2s var(--ease-slow),visibility 1.2s}
+#preloader.done{opacity:0;visibility:hidden}
+.preloader-text{font-family:'Inter',sans-serif;font-size:0.7rem;letter-spacing:16px;text-transform:uppercase;color:var(--text-dim);margin-bottom:24px}
+.preloader-bar{width:120px;height:1px;background:var(--border);position:relative;overflow:hidden}
+.preloader-bar::after{content:'';position:absolute;left:-100%;top:0;width:100%;height:100%;background:var(--accent);animation:loadSlide 1.5s ease-in-out infinite}
+@keyframes loadSlide{0%{left:-100%}100%{left:100%}}
+
+/* Noise */
+.noise{position:fixed;inset:0;pointer-events:none;z-index:9999;opacity:0.015;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* Nav */
+nav{position:fixed;top:0;left:0;width:100%;z-index:1000;padding:24px 5vw;display:flex;justify-content:space-between;align-items:center;transition:all .6s var(--ease)}
+nav.scrolled{background:rgba(5,5,5,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);padding:16px 5vw;border-bottom:1px solid rgba(255,255,255,.03)}
+.logo{font-size:.85rem;font-weight:600;letter-spacing:4px;color:var(--text);text-decoration:none}
+.logo span{font-size:.5rem;vertical-align:super;opacity:.4;margin-left:2px}
+.nav-desk{display:flex;gap:40px;list-style:none}
+.nav-desk a{color:var(--text-sec);text-decoration:none;font-size:.65rem;font-weight:500;letter-spacing:2px;text-transform:uppercase;transition:color .3s;position:relative;padding:4px 0}
+.nav-desk a::after{content:'';position:absolute;bottom:0;left:0;width:0;height:1px;background:var(--accent);transition:width .4s var(--ease)}
+.nav-desk a:hover{color:var(--text)}
+.nav-desk a:hover::after{width:100%}
+.nav-mob-btn{display:none;width:24px;height:18px;flex-direction:column;justify-content:space-between;cursor:pointer;background:none;border:none;padding:0}
+.nav-mob-btn span{display:block;width:100%;height:1px;background:var(--text);transition:all .4s var(--ease)}
+.nav-mob-btn.on span:nth-child(1){transform:translateY(8.5px) rotate(45deg)}
+.nav-mob-btn.on span:nth-child(2){opacity:0}
+.nav-mob-btn.on span:nth-child(3){transform:translateY(-8.5px) rotate(-45deg)}
+.nav-mob{position:fixed;inset:0;background:rgba(5,5,5,.98);backdrop-filter:blur(40px);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:36px;opacity:0;visibility:hidden;transition:all .5s var(--ease)}
+.nav-mob.on{opacity:1;visibility:visible}
+.nav-mob a{color:var(--text);text-decoration:none;font-size:1.1rem;font-weight:500;letter-spacing:4px;text-transform:uppercase;transition:color .3s}
+.nav-mob a:hover{color:var(--accent)}
+
+/* Hero */
+.hero{position:relative;width:100%;height:100vh;min-height:700px;overflow:hidden;display:flex;align-items:flex-end}
+.hero-vid{position:absolute;inset:0;z-index:0}
+.hero-vid video,.hero-vid .hero-poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.hero-vid .hero-poster{z-index:1;transition:opacity .8s}
+.hero-vid .hero-poster.hide{opacity:0;pointer-events:none}
+.hero-grad{position:absolute;inset:0;z-index:1;background:linear-gradient(to top,rgba(5,5,5,.95) 0%,rgba(5,5,5,.3) 40%,rgba(5,5,5,.2) 60%,rgba(5,5,5,.6) 100%)}
+.hero-content{position:relative;z-index:2;padding:0 5vw 100px;width:100%;max-width:1400px;margin:0 auto}
+.hero-label{font-size:.6rem;letter-spacing:6px;text-transform:uppercase;color:var(--accent-dim);margin-bottom:20px;font-weight:500}
+.hero-name{font-size:clamp(3.5rem,10vw,8rem);font-weight:700;line-height:.9;letter-spacing:-3px;margin-bottom:16px}
+.hero-role{font-size:clamp(.75rem,1.2vw,.9rem);color:var(--text-sec);letter-spacing:3px;text-transform:uppercase;margin-bottom:20px}
+.hero-tags{font-size:.7rem;color:var(--text-dim);letter-spacing:2px;margin-bottom:48px}
+.hero-actions{display:flex;gap:32px;align-items:center;flex-wrap:wrap}
+.hero-act{color:var(--text);text-decoration:none;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;font-weight:500;display:flex;align-items:center;gap:10px;transition:color .3s;cursor:pointer;background:none;border:none;font-family:inherit;padding:0}
+.hero-act:hover{color:var(--accent)}
+.hero-act svg{width:14px;height:14px;transition:transform .3s}
+.hero-act:hover svg{transform:translateX(4px)}
+.hero-act-line{width:40px;height:1px;background:var(--text-dim);transition:width .3s,background .3s}
+.hero-act:hover .hero-act-line{width:60px;background:var(--accent)}
+.hero-ctrl{position:absolute;bottom:32px;right:5vw;z-index:3;display:flex;gap:12px}
+.hc{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:var(--text-sec);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .3s;backdrop-filter:blur(10px)}
+.hc:hover{border-color:var(--accent);color:var(--accent)}
+.hc svg{width:14px;height:14px}
+
+/* Section base */
+.sec{padding:140px 5vw;position:relative}
+.sec-label{font-size:.6rem;letter-spacing:4px;text-transform:uppercase;color:var(--accent-dim);margin-bottom:20px;font-weight:500}
+.sec-title{font-family:'Noto Serif SC',serif;font-size:clamp(1.8rem,3.5vw,2.8rem);font-weight:700;line-height:1.2;margin-bottom:16px}
+.sec-desc{color:var(--text-sec);max-width:480px;font-size:.9rem;line-height:1.8}
+.sec-head{margin-bottom:100px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:24px}
+
+/* Works - Editorial asymmetric */
+.works{background:var(--bg-sec)}
+
+/* Featured project 01 */
+.p-feature{position:relative;margin-bottom:8px;cursor:pointer;overflow:hidden}
+.p-feature-media{position:relative;width:100%;aspect-ratio:21/9;background:var(--bg-card);overflow:hidden}
+.p-feature-media img{width:100%;height:100%;object-fit:cover;transition:transform 1.5s var(--ease-slow)}
+.p-feature:hover .p-feature-media img{transform:scale(1.03)}
+.p-feature-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(5,5,5,.9) 0%,transparent 50%);display:flex;align-items:flex-end;padding:48px 5vw}
+.p-feature-num{font-size:.55rem;letter-spacing:4px;color:var(--accent);margin-bottom:12px;font-weight:500}
+.p-feature-title{font-family:'Noto Serif SC',serif;font-size:clamp(1.6rem,3vw,2.4rem);font-weight:700;margin-bottom:8px}
+.p-feature-meta{font-size:.75rem;color:var(--text-sec);letter-spacing:1px}
+.p-feature-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.06);backdrop-filter:blur(15px);border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;opacity:0;transition:all .5s var(--ease);cursor:pointer}
+.p-feature:hover .p-feature-play{opacity:1}
+.p-feature-play:hover{background:var(--accent);border-color:var(--accent)}
+.p-feature-play svg{width:22px;height:22px;fill:white;margin-left:2px}
+
+/* Asymmetric grid */
+.p-grid{display:grid;grid-template-columns:1fr;gap:8px}
+.p-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.p-row.a-64{grid-template-columns:3fr 2fr}
+.p-row.a-46{grid-template-columns:2fr 3fr}
+
+.p-card{position:relative;cursor:pointer;overflow:hidden;background:var(--bg-card)}
+.p-card-media{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;background:var(--bg-card)}
+.p-card-media.portrait{aspect-ratio:9/16;max-height:70vh}
+.p-card-media img{width:100%;height:100%;object-fit:cover;transition:transform 1.2s var(--ease-slow)}
+.p-card:hover .p-card-media img{transform:scale(1.04)}
+.p-card-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(5,5,5,.85) 0%,transparent 60%);display:flex;flex-direction:column;justify-content:flex-end;padding:28px}
+.p-card-num{font-size:.55rem;letter-spacing:3px;color:var(--accent);margin-bottom:8px}
+.p-card-title{font-family:'Noto Serif SC',serif;font-size:1.1rem;font-weight:600;margin-bottom:6px}
+.p-card-meta{font-size:.7rem;color:var(--text-sec);letter-spacing:1px}
+.p-card-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.06);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;opacity:0;transition:all .4s var(--ease);cursor:pointer}
+.p-card:hover .p-card-play{opacity:1}
+.p-card-play:hover{background:var(--accent);border-color:var(--accent)}
+.p-card-play svg{width:16px;height:16px;fill:white;margin-left:2px}
+
+/* Vertical section */
+.p-vert{display:grid;grid-template-columns:1fr 1fr;gap:0;background:var(--bg)}
+.p-vert-media{position:relative;background:var(--bg-card);display:flex;align-items:center;justify-content:center;padding:60px}
+.p-vert-media-inner{position:relative;width:100%;max-width:340px;aspect-ratio:9/16;overflow:hidden;background:var(--bg-card);box-shadow:0 40px 80px rgba(0,0,0,.5)}
+.p-vert-media-inner img{width:100%;height:100%;object-fit:cover}
+.p-vert-info{padding:80px 60px;display:flex;flex-direction:column;justify-content:center}
+.p-vert-num{font-size:.6rem;letter-spacing:4px;color:var(--accent-dim);margin-bottom:20px}
+.p-vert-title{font-family:'Noto Serif SC',serif;font-size:clamp(1.8rem,3vw,2.6rem);font-weight:700;margin-bottom:16px;line-height:1.2}
+.p-vert-type{font-size:.75rem;color:var(--text-sec);letter-spacing:2px;text-transform:uppercase;margin-bottom:24px}
+.p-vert-desc{color:var(--text-sec);font-size:.9rem;line-height:1.8;margin-bottom:32px}
+.p-vert-role{font-size:.8rem;color:var(--text-dim);line-height:1.8;padding-top:24px;border-top:1px solid var(--border)}
+.p-vert-role strong{color:var(--text-sec);font-weight:500}
+.p-vert-cta{display:inline-flex;align-items:center;gap:10px;margin-top:32px;color:var(--text);text-decoration:none;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;font-weight:500;cursor:pointer;background:none;border:none;font-family:inherit;padding:0}
+.p-vert-cta:hover{color:var(--accent)}
+.p-vert-cta svg{width:14px;height:14px}
+
+/* More works */
+.more-w{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.more-c{position:relative;cursor:pointer;overflow:hidden;background:var(--bg-card);aspect-ratio:16/10}
+.more-c img{width:100%;height:100%;object-fit:cover;transition:transform 1.2s var(--ease-slow)}
+.more-c:hover img{transform:scale(1.04)}
+.more-c-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(5,5,5,.8) 0%,transparent 50%);display:flex;flex-direction:column;justify-content:flex-end;padding:24px}
+.more-c-num{font-size:.55rem;letter-spacing:3px;color:var(--accent);margin-bottom:6px}
+.more-c-title{font-family:'Noto Serif SC',serif;font-size:1rem;font-weight:600}
+
+/* Video Modal */
+.v-mod{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.97);backdrop-filter:blur(40px);display:none;align-items:center;justify-content:center;opacity:0;transition:opacity .5s ease;padding:20px}
+.v-mod.on{display:flex;opacity:1}
+.v-mod-c{width:100%;max-width:1200px;position:relative;animation:vModIn .6s var(--ease-slow)}
+@keyframes vModIn{from{opacity:0;transform:translateY(40px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+.v-mod-close{position:absolute;top:-56px;right:0;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:var(--text-sec);font-size:1.4rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .3s;z-index:10}
+.v-mod-close:hover{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.v-mod-vwrap{position:relative;padding-bottom:56.25%;background:#000;border-radius:2px;overflow:hidden}
+.v-mod-vwrap.portrait{padding-bottom:177.78%;max-width:420px;margin:0 auto}
+.v-mod-vwrap video,.v-mod-vwrap iframe{position:absolute;inset:0;width:100%;height:100%}
+.v-mod-vwrap .v-poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;transition:opacity .5s}
+.v-mod-vwrap .v-poster.hide{opacity:0;pointer-events:none}
+.v-mod-vwrap iframe{z-index:2}
+.v-mod-info{margin-top:32px}
+.v-mod-info h3{font-family:'Noto Serif SC',serif;font-size:1.5rem;font-weight:700;margin-bottom:8px}
+.v-mod-info p{color:var(--text-sec);font-size:.85rem;line-height:1.7}
+.v-mod-meta{display:flex;gap:32px;margin-top:16px;font-size:.65rem;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase}
+.v-eps{display:none;margin-bottom:16px}
+.v-eps-label{font-size:.55rem;letter-spacing:2px;color:var(--accent-dim);margin-bottom:10px;text-transform:uppercase}
+.v-eps-list{display:flex;gap:8px;flex-wrap:wrap}
+.v-eps-btn{padding:6px 14px;border:1px solid var(--border);background:transparent;color:var(--text-sec);font-size:.75rem;cursor:pointer;transition:all .3s;font-family:inherit}
+.v-eps-btn:hover{border-color:var(--accent-dim);color:var(--accent)}
+.v-eps-btn.on{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+
+/* About */
+.about-h{display:grid;grid-template-columns:1fr 1fr;gap:0;min-height:80vh;align-items:center}
+.about-h-img{position:relative;height:100%;min-height:500px;overflow:hidden;background:var(--bg-card)}
+.about-h-img img{width:100%;height:100%;object-fit:cover;object-position:center top;filter:grayscale(30%);transition:filter 1s}
+.about-h-img:hover img{filter:grayscale(0)}
+.about-h-t{padding:80px 5vw;display:flex;flex-direction:column;justify-content:center}
+.about-h-label{font-size:.6rem;letter-spacing:4px;color:var(--accent-dim);margin-bottom:24px;text-transform:uppercase}
+.about-h-name{font-size:clamp(2rem,5vw,3.5rem);font-weight:700;letter-spacing:-1px;margin-bottom:12px}
+.about-h-sub{font-size:.85rem;color:var(--text-sec);letter-spacing:2px;text-transform:uppercase;margin-bottom:32px}
+.about-h-desc{color:var(--text-sec);font-size:.9rem;line-height:1.9;margin-bottom:20px}
+
+/* Timeline */
+.tl-sec{background:var(--bg-sec);border-top:1px solid var(--border)}
+.tl{position:relative;max-width:900px;margin:0 auto}
+.tl::before{content:'';position:absolute;left:0;top:0;bottom:0;width:1px;background:linear-gradient(to bottom,var(--accent-dim),transparent)}
+.tl-item{position:relative;padding-left:48px;padding-bottom:56px}
+.tl-item:last-child{padding-bottom:0}
+.tl-dot{position:absolute;left:-4px;top:4px;width:9px;height:9px;border-radius:50%;background:var(--bg);border:2px solid var(--accent-dim)}
+.tl-time{font-size:.7rem;letter-spacing:2px;color:var(--accent);margin-bottom:8px;font-weight:500}
+.tl-title{font-family:'Noto Serif SC',serif;font-size:1.2rem;font-weight:600;margin-bottom:6px}
+.tl-comp{font-size:.8rem;color:var(--text-sec);letter-spacing:1px;margin-bottom:10px}
+.tl-desc{font-size:.85rem;color:var(--text-dim);line-height:1.8}
+
+/* Skills */
+.sk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+.sk-track{background:var(--bg-card);padding:40px 32px;transition:background .3s}
+.sk-track:hover{background:#101010}
+.sk-label{font-size:.55rem;letter-spacing:3px;text-transform:uppercase;color:var(--accent-dim);margin-bottom:24px;font-weight:500}
+.sk-items{display:flex;flex-wrap:wrap;gap:8px}
+.sk-tag{padding:6px 14px;border:1px solid var(--border);font-size:.75rem;color:var(--text-sec);transition:all .3s}
+.sk-tag:hover{border-color:var(--accent-dim);color:var(--accent)}
+
+/* Resume */
+.res-sec{background:var(--bg-sec);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.res-view{max-width:800px;margin:0 auto;background:var(--bg-card);border:1px solid var(--border);border-radius:2px;overflow:hidden}
+.res-view img{width:100%;height:auto;display:block}
+.res-act{display:flex;justify-content:center;gap:24px;margin-top:40px;flex-wrap:wrap}
+.res-btn{display:inline-flex;align-items:center;gap:10px;padding:14px 36px;font-size:.75rem;letter-spacing:2px;text-transform:uppercase;font-weight:600;text-decoration:none;border-radius:2px;transition:all .4s var(--ease);cursor:pointer;border:none;font-family:inherit}
+.res-btn-pri{background:var(--accent);color:var(--bg)}
+.res-btn-pri:hover{background:var(--text);transform:translateY(-2px)}
+.res-btn-sec{background:transparent;color:var(--text-sec);border:1px solid var(--border)}
+.res-btn-sec:hover{border-color:var(--text-sec);color:var(--text)}
+
+/* Contact */
+.contact-s{text-align:center;padding:160px 5vw}
+.contact-in{max-width:600px;margin:0 auto}
+.contact-label{font-size:.6rem;letter-spacing:6px;text-transform:uppercase;color:var(--accent-dim);margin-bottom:32px}
+.contact-title{font-family:'Noto Serif SC',serif;font-size:clamp(1.8rem,4vw,2.8rem);font-weight:700;margin-bottom:16px}
+.contact-desc{color:var(--text-sec);margin-bottom:40px;font-size:.95rem;line-height:1.8}
+.contact-info{display:flex;justify-content:center;gap:40px;margin-bottom:40px;flex-wrap:wrap}
+.contact-item{text-align:center}
+.contact-item-label{font-size:.55rem;letter-spacing:3px;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px}
+.contact-item-val{color:var(--text-sec);font-size:.88rem;text-decoration:none;transition:color .3s}
+.contact-item-val:hover{color:var(--accent)}
+.contact-cta{display:inline-flex;align-items:center;gap:12px;padding:16px 40px;background:var(--accent);color:var(--bg);text-decoration:none;font-size:.75rem;letter-spacing:3px;text-transform:uppercase;font-weight:600;border-radius:2px;transition:all .4s var(--ease)}
+.contact-cta:hover{background:var(--text);transform:translateY(-2px)}
+
+/* Footer */
+footer{padding:40px 5vw;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+footer p{font-size:.6rem;color:var(--text-dim);letter-spacing:2px}
+
+/* Reveal */
+.reveal{opacity:0;transform:translateY(60px);transition:all 1s var(--ease-slow)}
+.reveal.vis{opacity:1;transform:translateY(0)}
+.reveal-d1{transition-delay:.1s}
+.reveal-d2{transition-delay:.2s}
+.reveal-d3{transition-delay:.3s}
+
+/* Marquee */
+.marquee-wrap{overflow:hidden;padding:40px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin:80px 0}
+.marquee{display:flex;gap:80px;animation:marquee 30s linear infinite;white-space:nowrap}
+.marquee span{font-size:.7rem;letter-spacing:4px;text-transform:uppercase;color:var(--text-dim)}
+@keyframes marquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+/* Responsive */
+@media(max-width:1024px){
+  .about-h{grid-template-columns:1fr}
+  .about-h-img{min-height:400px;max-height:500px}
+  .p-vert{grid-template-columns:1fr}
+  .p-vert-media{padding:40px}
+  .p-vert-info{padding:40px 5vw}
+  .sk-grid{grid-template-columns:1fr}
+}
+@media(max-width:768px){
+  .nav-desk{display:none}
+  .nav-mob-btn{display:flex}
+  .sec{padding:80px 5vw}
+  .hero{min-height:auto;height:auto;padding-top:80px}
+  .hero-content{padding:60px 5vw 40px}
+  .hero-name{font-size:2.8rem;letter-spacing:0}
+  .hero-actions{flex-direction:column;align-items:flex-start;gap:16px}
+  .hero-ctrl{bottom:auto;top:100px;right:5vw}
+  .p-row,.p-row.a-64,.p-row.a-46{grid-template-columns:1fr}
+  .p-feature-media{aspect-ratio:16/9}
+  .p-card-media.portrait{aspect-ratio:9/16;max-height:60vh}
+  .p-vert-media-inner{max-width:260px}
+  .about-h-t{padding:40px 5vw}
+  .contact-s{padding:100px 5vw}
+  .contact-info{flex-direction:column;gap:24px}
+  footer{flex-direction:column;text-align:center}
+  .tl::before{left:3px}
+  .tl-item{padding-left:32px}
+  .tl-dot{width:7px;height:7px;left:0}
+  .v-mod-vwrap.portrait{max-width:100%}
+  .marquee-wrap{margin:40px 0}
+}
+@media(max-width:480px){
+  .hero-name{font-size:2.2rem}
+  .sec-title{font-size:1.4rem}
+  .p-feature-overlay{padding:24px}
+  .p-card-overlay{padding:20px}
+  .p-vert-title{font-size:1.4rem}
+}
+</style>
+</head>
+<body>
+
+<!-- Preloader -->
+<div id="preloader">
+  <div class="preloader-text">LIXIN</div>
+  <div class="preloader-bar"></div>
+</div>
+<div class="noise"></div>
+
+<!-- Nav -->
+<nav id="navbar">
+  <a href="#" class="logo">LIXIN<span>®</span></a>
+  <ul class="nav-desk">
+    <li><a href="#works">Work</a></li>
+    <li><a href="#about">About</a></li>
+    <li><a href="#experience">Experience</a></li>
+    <li><a href="#skills">Skills</a></li>
+    <li><a href="#resume">Resume</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+  <button class="nav-mob-btn" id="navMobBtn" aria-label="Menu"><span></span><span></span><span></span></button>
+</nav>
+<div class="nav-mob" id="navMob">
+  <a href="#works">Work</a>
+  <a href="#about">About</a>
+  <a href="#experience">Experience</a>
+  <a href="#skills">Skills</a>
+  <a href="#resume">Resume</a>
+  <a href="#contact">Contact</a>
+</div>
+
+<!-- HERO -->
+<section class="hero" id="hero">
+  <div class="hero-vid">
+    <img class="hero-poster" id="heroPoster" src="cover-jinxue.png" alt="烬雪照命">
+    <video id="heroVideo" muted loop playsinline preload="none" poster="cover-jinxue.png">
+      <source src="https://videos.pexels.com/video-files/3129671/3129671-hd_1920_1080_30fps.mp4" type="video/mp4">
+    </video>
+  </div>
+  <div class="hero-grad"></div>
+  <div class="hero-content">
+    <div class="hero-label">Featured Film</div>
+    <h1 class="hero-name">LIXIN</h1>
+    <p class="hero-role">AIGC Video Director / Video Editor / AI Filmmaker</p>
+    <p class="hero-tags">NARRATIVE · COMMERCIAL · MV · SHORT DRAMA</p>
+    <div class="hero-actions">
+      <button class="hero-act" id="heroWatch">
+        <span class="hero-act-line"></span>
+        <span>Watch Film</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+      <a href="#works" class="hero-act">
+        <span>View Projects</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <a href="#resume" class="hero-act">
+        <span>Download Resume</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </a>
+    </div>
+  </div>
+  <div class="hero-ctrl">
+    <button class="hc" id="hMute" aria-label="Mute">
+      <svg id="hMuteIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+      <svg id="hSoundIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+    </button>
+    <button class="hc" id="hPause" aria-label="Pause">
+      <svg id="hPauseIcon" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+      <svg id="hPlayIcon" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+    <button class="hc" id="hFull" aria-label="Fullscreen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+    </button>
+  </div>
+</section>
+
+<!-- WORKS -->
+<section class="sec works" id="works">
+  <div class="sec-head reveal">
+    <div>
+      <div class="sec-label">Selected Works</div>
+      <h2 class="sec-title">精选作品</h2>
+    </div>
+    <p class="sec-desc">涵盖原创AIGC剧情短片、品牌创意视频、AI MV、系列短剧及文化动画等多类型原创项目。</p>
+  </div>
+
+  <!-- 01 烬雪照命 -->
+  <div class="p-feature reveal" data-project="0">
+    <div class="p-feature-media">
+      <img src="cover-jinxue.png" alt="烬雪照命" loading="lazy">
+      <div class="p-feature-play">
+        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      </div>
+    </div>
+    <div class="p-feature-overlay">
+      <div>
+        <div class="p-feature-num">PROJECT 01</div>
+        <h3 class="p-feature-title">烬雪照命</h3>
+        <p class="p-feature-meta">原创AIGC东方玄幻剧情短片 / Trailer · 约1分52秒 · 1920×1080 · 60fps</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 02 & 03 -->
+  <div class="p-grid">
+    <div class="p-row a-64 reveal">
+      <div class="p-card" data-project="1">
+        <div class="p-card-media">
+          <img src="cover-xiaomogu.png" alt="小蘑菇之末日逃亡" loading="lazy">
+          <div class="p-card-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
+        </div>
+        <div class="p-card-overlay">
+          <div class="p-card-num">PROJECT 02</div>
+          <h3 class="p-card-title">小蘑菇之末日逃亡</h3>
+          <p class="p-card-meta">原创AIGC末日 / 奇幻短片 · 约1分59秒</p>
+        </div>
+      </div>
+      <div class="p-card" data-project="2">
+        <div class="p-card-media">
+          <img src="cover-fusheng.png" alt="浮生若梦" loading="lazy">
+          <div class="p-card-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
+        </div>
+        <div class="p-card-overlay">
+          <div class="p-card-num">PROJECT 03</div>
+          <h3 class="p-card-title">浮生若梦</h3>
+          <p class="p-card-meta">AIGC MV / 民国奇幻 · 约2分08秒</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 04 千里归途 - Vertical -->
+  <div class="p-vert reveal" style="margin-top:8px">
+    <div class="p-vert-media">
+      <div class="p-vert-media-inner">
+        <img src="cover-qianliguitu.png" alt="重生东北哥：千里归途" loading="lazy">
+      </div>
+    </div>
+    <div class="p-vert-info">
+      <div class="p-vert-num">PROJECT 04</div>
+      <h3 class="p-vert-title">重生东北哥：千里归途</h3>
+      <div class="p-vert-type">现实重生 / 公路爽剧 / 竖屏短剧 · 约2分16秒 · 1080×1920</div>
+      <p class="p-vert-desc">东北小伙王大闯惨死诈骗窝点后意外重生，带着前世记忆救下周小宇，两人骑摩托逃出窝点，一路向北返乡。整体具有重生、逃亡、动作、公路、爽剧、连续钩子等元素。</p>
+      <div class="p-vert-role"><strong>职责：</strong>AIGC导演 / AI影像创作 / 剪辑后期 / 竖屏短剧剪辑 / 高密度剧情节奏 / 爽点节奏 / 悬念钩子 / 连续剧叙事</div>
+      <button class="p-vert-cta" data-project="3">
+        <span>Watch Film</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- 05 健力宝 -->
+  <div class="p-feature reveal" style="margin-top:8px" data-project="4">
+    <div class="p-feature-media" style="aspect-ratio:21/9">
+      <img src="cover-jianlibao.png" alt="健力宝AIGC" loading="lazy">
+      <div class="p-feature-play">
+        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      </div>
+    </div>
+    <div class="p-feature-overlay">
+      <div>
+        <div class="p-feature-num">PROJECT 05</div>
+        <h3 class="p-feature-title">健力宝 AIGC 创意参赛视频</h3>
+        <p class="p-feature-meta">品牌创意短片 · 约1分03秒 · 1920×1080 · 核心文案：陪你长大，也陪他变老</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- More Works -->
+  <div style="margin-top:80px">
+    <div class="sec-label reveal" style="margin-bottom:40px">More Works</div>
+    <div class="more-w reveal">
+      <div class="more-c" data-project="5">
+        <img src="cover-maomi.png" alt="东北猫咪相亲记" loading="lazy">
+        <div class="more-c-overlay">
+          <div class="more-c-num">PROJECT 06</div>
+          <div class="more-c-title">东北猫咪相亲记</div>
+        </div>
+      </div>
+      <div class="more-c" data-project="6">
+        <img src="cover-liyu.png" alt="鲤鱼跃龙门" loading="lazy">
+        <div class="more-c-overlay">
+          <div class="more-c-num">PROJECT 07</div>
+          <div class="more-c-title">鲤鱼跃龙门</div>
+        </div>
+      </div>
+      <div class="more-c" style="background:var(--bg-card);display:flex;align-items:center;justify-content:center;cursor:default">
+        <div style="text-align:center">
+          <div style="font-size:.55rem;letter-spacing:3px;color:var(--text-dim);margin-bottom:8px">FULL PORTFOLIO</div>
+          <div style="font-size:.8rem;color:var(--text-sec)">面试可提供完整作品集</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Marquee -->
+<div class="marquee-wrap reveal">
+  <div class="marquee">
+    <span>AIGC VIDEO DIRECTOR</span><span>·</span><span>VIDEO EDITOR</span><span>·</span><span>AI FILMMAKER</span><span>·</span><span>BRAND COMMERCIAL</span><span>·</span><span>NARRATIVE SHORT</span><span>·</span><span>MUSIC VIDEO</span><span>·</span><span>VERTICAL SERIES</span><span>·</span>
+    <span>AIGC VIDEO DIRECTOR</span><span>·</span><span>VIDEO EDITOR</span><span>·</span><span>AI FILMMAKER</span><span>·</span><span>BRAND COMMERCIAL</span><span>·</span><span>NARRATIVE SHORT</span><span>·</span><span>MUSIC VIDEO</span><span>·</span><span>VERTICAL SERIES</span><span>·</span>
+  </div>
+</div>
+
+<!-- Video Modal -->
+<div class="v-mod" id="vMod">
+  <div class="v-mod-c">
+    <button class="v-mod-close" id="vModClose">&times;</button>
+    <div class="v-mod-vwrap" id="vModWrap">
+      <img class="v-poster" id="vModPoster" src="" alt="">
+      <video id="vModVideo" controls playsinline preload="none"></video>
+      <iframe id="vModIframe" src="" frameborder="0" allow="autoplay;fullscreen;picture-in-picture" style="position:absolute;inset:0;width:100%;height:100%;display:none;z-index:2" title="Project Video"></iframe>
+    </div>
+    <div class="v-mod-info">
+      <h3 id="vModTitle">项目标题</h3>
+      <div class="v-eps" id="vEps">
+        <div class="v-eps-label">Select Episode</div>
+        <div class="v-eps-list" id="vEpsList"></div>
+      </div>
+      <p id="vModDesc">项目描述</p>
+      <div class="v-mod-meta">
+        <span id="vModType">类型</span>
+        <span id="vModYear">年份</span>
+        <span id="vModDuration">时长</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ABOUT -->
+<section class="sec" id="about">
+  <div class="about-h">
+    <div class="about-h-img reveal">
+      <img src="photo-fullbody.png" alt="李新">
+    </div>
+    <div class="about-h-t reveal reveal-d1">
+      <div class="about-h-label">About</div>
+      <h2 class="about-h-name">LIXIN</h2>
+      <p class="about-h-sub">From Visual Design to AI Filmmaking</p>
+      <p class="about-h-desc">拥有9年视觉设计与创意项目经验，具备成熟的构图、色彩、视觉风格与商业审美能力。2026年系统进修AIGC影视导演方向，完成剧情短片、品牌创意视频、AI MV、系列短剧及文化动画等多类型原创项目。</p>
+      <p class="about-h-desc">具备AI创意构思、视觉开发、角色与场景设定、分镜设计、AI图像/视频生成到剪辑后期的完整制作能力。现专注于AIGC剧情影像、品牌视频及AI短片创作。</p>
+      <p class="about-h-desc">从传统视觉设计到AIGC影像创作，始终追求用技术与艺术的融合，为每一个项目注入独特的视觉灵魂。</p>
+    </div>
+  </div>
+</section>
+
+<!-- EXPERIENCE -->
+<section class="sec tl-sec" id="experience">
+  <div class="sec-head reveal">
+    <div>
+      <div class="sec-label">Experience</div>
+      <h2 class="sec-title">工作经历</h2>
+    </div>
+  </div>
+  <div class="tl">
+    <div class="tl-item reveal">
+      <div class="tl-dot"></div>
+      <div class="tl-time">2021.08 — 2026.01</div>
+      <div class="tl-title">品牌视觉体系 / 创意设计 / 动态内容视觉方向</div>
+      <div class="tl-comp">杭州觅睿科技股份有限公司</div>
+      <div class="tl-desc">负责品牌视觉体系、创意设计及动态内容视觉方向，参与企业宣传片、品牌宣传视频、产品广告视频、发布会视觉及社交媒体内容等项目，涵盖前期创意、视觉风格、脚本构思、画面构图及后期制作阶段，提升品牌视觉影响力与内容传播力。</div>
+    </div>
+    <div class="tl-item reveal">
+      <div class="tl-dot"></div>
+      <div class="tl-time">2019.05 — 2021.06</div>
+      <div class="tl-title">品牌 / 画册 / 包装 / 网站 / 市场传播视觉设计</div>
+      <div class="tl-comp">北京剑荣资产有限公司</div>
+      <div class="tl-desc">负责品牌、画册、包装、网站及市场传播视觉设计，并参与企业宣传、产品展示及线上活动内容视觉制作，积累商业视觉、镜头构图与剪辑方向经验。</div>
+    </div>
+    <div class="tl-item reveal">
+      <div class="tl-dot"></div>
+      <div class="tl-time">2026.05 — 2026.09</div>
+      <div class="tl-title">AIGC影视导演专项培训</div>
+      <div class="tl-comp">杭州火星时代教育</div>
+      <div class="tl-desc">课程方向：剧本视觉化 / 导演思维 / 分镜设计 / 镜头语言 / 角色与场景资产 / AI图像生成 / AI视频生成 / 剪辑 / 合成 / 调色 / 声音设计</div>
+    </div>
+    <div class="tl-item reveal">
+      <div class="tl-dot"></div>
+      <div class="tl-time">2012.09 — 2016.08</div>
+      <div class="tl-title">艺术设计学士</div>
+      <div class="tl-comp">长春建筑学院</div>
+      <div class="tl-desc">系统学习视觉设计基础，奠定构图、色彩与审美能力。</div>
+    </div>
+  </div>
+</section>
+
+<!-- SKILLS -->
+<section class="sec" id="skills">
+  <div class="sec-head reveal">
+    <div>
+      <div class="sec-label">Skills & Tools</div>
+      <h2 class="sec-title">专业技能</h2>
+    </div>
+  </div>
+  <div class="sk-grid reveal">
+    <div class="sk-track">
+      <div class="sk-label">AIGC Tools</div>
+      <div class="sk-items">
+        <span class="sk-tag">Midjourney</span>
+        <span class="sk-tag">Posemy</span>
+        <span class="sk-tag">Kling</span>
+        <span class="sk-tag">Seedance</span>
+        <span class="sk-tag">即梦</span>
+        <span class="sk-tag">Noiz</span>
+      </div>
+    </div>
+    <div class="sk-track">
+      <div class="sk-label">Post Production</div>
+      <div class="sk-items">
+        <span class="sk-tag">剪映</span>
+        <span class="sk-tag">Premiere Pro</span>
+        <span class="sk-tag">After Effects</span>
+        <span class="sk-tag">DaVinci Resolve</span>
+      </div>
+    </div>
+    <div class="sk-track">
+      <div class="sk-label">Design</div>
+      <div class="sk-items">
+        <span class="sk-tag">Photoshop</span>
+        <span class="sk-tag">Illustrator</span>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:60px;text-align:center" class="reveal">
+    <p style="color:var(--text-dim);font-size:.75rem;letter-spacing:2px;text-transform:uppercase">Core Capabilities</p>
+    <p style="color:var(--text-sec);font-size:.85rem;margin-top:16px;line-height:2">
+      AI创意构思 · 视觉开发 · 角色与场景设定 · 分镜设计 · AI图像生成 · AI视频生成 · 剪辑 · 合成 · 调色 · 声音设计 · 叙事节奏 · 品牌视觉
+    </p>
+  </div>
+</section>
+
+<!-- RESUME -->
+<section class="sec res-sec" id="resume">
+  <div class="sec-head reveal" style="justify-content:center;text-align:center">
+    <div>
+      <div class="sec-label">Resume</div>
+      <h2 class="sec-title">简历</h2>
+    </div>
+  </div>
+  <div class="res-view reveal">
+    <img src="resume.png" alt="李新简历">
+  </div>
+  <div class="res-act reveal">
+    <a href="mailto:1259686414@qq.com?subject=简历查看请求" class="res-btn res-btn-pri">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      View Resume
+    </a>
+    <a href="mailto:1259686414@qq.com?subject=简历下载请求" class="res-btn res-btn-sec">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download Resume
+    </a>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section class="contact-s" id="contact">
+  <div class="contact-in">
+    <div style="margin-bottom:40px" class="reveal">
+      <img src="photo-portrait.png" alt="李新" style="width:100px;height:100px;object-fit:cover;object-position:center top;filter:grayscale(30%);opacity:.8;border-radius:2px">
+    </div>
+    <div class="contact-label reveal">Contact</div>
+    <h2 class="contact-title reveal">期待与您合作</h2>
+    <p class="contact-desc reveal">如果您有AIGC影像项目需要合作，欢迎随时与我联系。</p>
+    <div class="contact-info reveal">
+      <div class="contact-item">
+        <div class="contact-item-label">Location</div>
+        <div class="contact-item-val">杭州</div>
+      </div>
+      <div class="contact-item">
+        <div class="contact-item-label">Phone</div>
+        <a href="tel:18519767818" class="contact-item-val">185-1976-7818</a>
+      </div>
+      <div class="contact-item">
+        <div class="contact-item-label">Email</div>
+        <a href="mailto:1259686414@qq.com" class="contact-item-val">1259686414@qq.com</a>
+      </div>
+    </div>
+    <a href="mailto:1259686414@qq.com" class="contact-cta reveal">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      Email Me
+    </a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p>LIXIN® · AIGC VIDEO DIRECTOR · HANGZHOU · 2026</p>
+  <p>作品集/Showreel：面试可提供</p>
+</footer>
+
+<script>
+(function(){
+"use strict";
+
+// Preloader
+window.addEventListener("load",function(){
+  setTimeout(function(){
+    document.getElementById("preloader").classList.add("done");
+  },1000);
+});
+
+// Nav
+var navbar=document.getElementById("navbar");
+window.addEventListener("scroll",function(){
+  navbar.classList.toggle("scrolled",window.scrollY>50);
+});
+
+// Mobile nav
+var navMobBtn=document.getElementById("navMobBtn");
+var navMob=document.getElementById("navMob");
+navMobBtn.addEventListener("click",function(){
+  this.classList.toggle("on");
+  navMob.classList.toggle("on");
+  document.body.style.overflow=navMob.classList.contains("on")?"hidden":"";
+});
+document.querySelectorAll(".nav-mob a").forEach(function(a){
+  a.addEventListener("click",function(){
+    navMobBtn.classList.remove("on");
+    navMob.classList.remove("on");
+    document.body.style.overflow="";
+  });
+});
+
+// Smooth scroll
+document.querySelectorAll('a[href^="#"]').forEach(function(a){
+  a.addEventListener("click",function(e){
+    e.preventDefault();
+    var t=document.querySelector(this.getAttribute("href"));
+    if(t)t.scrollIntoView({behavior:"smooth",block:"start"});
+  });
+});
+
+// Scroll reveal
+var revObs=new IntersectionObserver(function(entries){
+  entries.forEach(function(e){
+    if(e.isIntersecting)e.target.classList.add("vis");
+  });
+},{threshold:.08,rootMargin:"0px 0px -60px 0px"});
+document.querySelectorAll(".reveal").forEach(function(el){
+  revObs.observe(el);
+});
+
+// Video manager
+function pauseAll(){
+  document.querySelectorAll("video").forEach(function(v){
+    if(v.id!=="vModVideo")v.pause();
+  });
+}
+
+// Hero video
+var heroVideo=document.getElementById("heroVideo");
+var heroPoster=document.getElementById("heroPoster");
+var hMute=document.getElementById("hMute");
+var hPause=document.getElementById("hPause");
+var hFull=document.getElementById("hFull");
+var hMuteIcon=document.getElementById("hMuteIcon");
+var hSoundIcon=document.getElementById("hSoundIcon");
+var hPauseIcon=document.getElementById("hPauseIcon");
+var hPlayIcon=document.getElementById("hPlayIcon");
+var heroWatch=document.getElementById("heroWatch");
+
+var heroObs=new IntersectionObserver(function(entries){
+  entries.forEach(function(e){
+    if(e.isIntersecting){
+      heroVideo.src=heroVideo.querySelector("source").src;
+      heroVideo.load();
+      heroVideo.play().catch(function(){});
+      heroObs.disconnect();
+    }
+  });
+},{threshold:.1});
+heroObs.observe(heroVideo);
+
+heroVideo.addEventListener("play",function(){
+  heroPoster.classList.add("hide");
+});
+
+hMute.addEventListener("click",function(){
+  heroVideo.muted=!heroVideo.muted;
+  hMuteIcon.style.display=heroVideo.muted?"block":"none";
+  hSoundIcon.style.display=heroVideo.muted?"none":"block";
+});
+
+hPause.addEventListener("click",function(){
+  if(heroVideo.paused){
+    heroVideo.play();
+    hPauseIcon.style.display="block";hPlayIcon.style.display="none";
+  }else{
+    heroVideo.pause();
+    hPauseIcon.style.display="none";hPlayIcon.style.display="block";
+  }
+});
+
+hFull.addEventListener("click",function(){
+  var c=document.querySelector(".hero-vid");
+  if(c.requestFullscreen)c.requestFullscreen();
+  else if(c.webkitRequestFullscreen)c.webkitRequestFullscreen();
+  else if(c.msRequestFullscreen)c.msRequestFullscreen();
+});
+
+heroWatch.addEventListener("click",function(){
+  openModal(0);
+});
+
+// Projects data
+var projData=[
+  {
+    title:"烬雪照命",
+    desc:"原创AIGC东方玄幻剧情短片 / Trailer。东方玄幻、宿命轮回、镜中世界、守镜神女、第十世、记忆与宿命。完成从故事概念化、人物设计、场景设定、镜头设计到AI影像生成、剪辑后期的完整流程。",
+    role:"AIGC导演 / 视觉开发 / 分镜设计 / AI视频生成 / 剪辑后期",
+    type:"原创AIGC剧情短片",year:"2026",duration:"约1分52秒 · 1920×1080 · 60fps",
+    video:"",vimeo:"https://player.vimeo.com/video/1223551077?badge=0&autopause=0&player_id=0&app_id=58479",
+    poster:"cover-jinxue.png",portrait:false
+  },
+  {
+    title:"小蘑菇之末日逃亡",
+    desc:"原创AIGC末日 / 奇幻短片。围绕末日世界观完成角色、环境及视觉风格开发，并进行镜头规划、AI图像与视频生成及后期剪辑。",
+    role:"AIGC导演 / AI影像创作 / 剪辑后期",
+    type:"原创AIGC末日短片",year:"2026",duration:"约1分59秒 · 1920×1080 · 30fps",
+    video:"",vimeo:"https://player.vimeo.com/video/1223550663?badge=0&autopause=0&player_id=0&app_id=58479",
+    poster:"cover-xiaomogu.png",portrait:false
+  },
+  {
+    title:"浮生若梦",
+    desc:"AIGC MV / 民国奇幻 / 情绪叙事。结合音乐情感进行视觉概念开发与镜头设计，完成AI影像生成、节奏剪辑及后期视觉处理。",
+    role:"视觉创意 / 分镜 / AI视频制作 / 剪辑",
+    type:"AIGC MV",year:"2026",duration:"约2分08秒 · 1920×1080 · 30fps",
+    video:"",vimeo:"https://player.vimeo.com/video/1223550589?badge=0&autopause=0&player_id=0&app_id=58479",
+    poster:"cover-fusheng.png",portrait:false
+  },
+  {
+    title:"重生东北哥：千里归途",
+    desc:"现实重生 / 公路爽剧 / 竖屏短剧。东北小伙王大闯惨死诈骗窝点后意外重生，带着前世记忆救下周小宇，两人骑摩托逃出窝点，一路向北返乡。",
+    role:"AIGC导演 / AI影像创作 / 剪辑后期 / 竖屏短剧剪辑 / 高密度剧情节奏 / 爽点节奏 / 悬念钩子 / 连续剧叙事",
+    type:"竖屏短剧",year:"2026",duration:"约2分16秒 · 1080×1920 · 30fps",
+    video:"",vimeo:"https://player.vimeo.com/video/1223550565?badge=0&autopause=0&player_id=0&app_id=58479",
+    poster:"cover-qianliguitu.png",portrait:true
+  },
+  {
+    title:"健力宝 AIGC 创意参赛视频",
+    desc:"品牌创意短片。围绕品牌传播需求进行创意概念与动态视觉开发，将产品与品牌元素融入AIGC影像叙事。核心文案：陪你长大，也陪他变老。",
+    role:"创意策划 / 视觉设计 / AI视频制作 / 剪辑包装",
+    type:"品牌创意短片",year:"2026",duration:"约1分03秒 · 1920×1080 · 30fps",
+    video:"",vimeo:"https://player.vimeo.com/video/1223550622?badge=0&autopause=0&player_id=0&app_id=58479",
+    poster:"cover-jianlibao.png",portrait:false
+  },
+  {
+    title:"东北猫咪相亲记",
+    desc:"AIGC系列竖屏短剧 / 轻喜剧。完整8集。建立系列化角色与场景视觉体系，保持多集中的人物识别、风格统一。",
+    role:"角色 / 剧本开发 / AI视频制作 / 连续剧集制作 / 剪辑",
+    type:"AIGC系列短剧",year:"2026",duration:"8集 · 竖屏",
+    video:"",vimeo:"https://player.vimeo.com/video/1223548169?badge=0&autopause=0&player_id=0&app_id=58479",
+    poster:"cover-maomi.png",portrait:true,
+    episodes:[
+      {num:"EP.01",vimeo:"https://player.vimeo.com/video/1223548169?badge=0&autopause=0&player_id=0&app_id=58479"},
+      {num:"EP.02",vimeo:"https://player.vimeo.com/video/1223549164?badge=0&autopause=0&player_id=0&app_id=58479"},
+      {num:"EP.03",vimeo:"https://player.vimeo.com/video/1223549179?badge=0&autopause=0&player_id=0&app_id=58479"},
+      {num:"EP.04",vimeo:"https://player.vimeo.com/video/1223549185?badge=0&autopause=0&player_id=0&app_id=58479"},
+      {num:"EP.05",vimeo:"https://player.vimeo.com/video/1223549191?badge=0&autopause=0&player_id=0&app_id=58479"},
+      {num:"EP.06",vimeo:"https://player.vimeo.com/video/1223549201?badge=0&autopause=0&player_id=0&app_id=58479"},
+      {num:"EP.07",vimeo:"https://player.vimeo.com/video/1223549226?badge=0&autopause=0&player_id=0&app_id=58479"},
+      {num:"EP.08",vimeo:"https://player.vimeo.com/video/1223549515?badge=0&autopause=0&player_id=0&app_id=58479"}
+    ]
+  },
+  {
+    title:"鲤鱼跃龙门",
+    desc:"成语故事 / 中国传统文化 / 国风竖屏短视频。",
+    type:"国风竖屏短视频",year:"2026",duration:"约54秒 · 720×1280 · 30fps",
+    video:"",vimeo:"https://player.vimeo.com/video/1223551483?badge=0&autopause=0&player_id=0&app_id=58479",
+    poster:"cover-liyu.png",portrait:true
+  }
+];
+
+// Modal
+var vMod=document.getElementById("vMod");
+var vModVideo=document.getElementById("vModVideo");
+var vModPoster=document.getElementById("vModPoster");
+var vModWrap=document.getElementById("vModWrap");
+var vModTitle=document.getElementById("vModTitle");
+var vModDesc=document.getElementById("vModDesc");
+var vModType=document.getElementById("vModType");
+var vModYear=document.getElementById("vModYear");
+var vModDuration=document.getElementById("vModDuration");
+var vModClose=document.getElementById("vModClose");
+var vEps=document.getElementById("vEps");
+var vEpsList=document.getElementById("vEpsList");
+
+function openModal(idx){
+  var d=projData[idx];if(!d)return;
+  pauseAll();
+  vModPoster.src=d.poster;
+  vModPoster.classList.remove("hide");
+  vModTitle.textContent=d.title;
+  vModDesc.textContent=d.desc;
+  vModType.textContent=d.type;
+  vModYear.textContent=d.year;
+  vModDuration.textContent=d.duration;
+  if(d.portrait){vModWrap.classList.add("portrait");}else{vModWrap.classList.remove("portrait");}
+
+  var iframe=document.getElementById("vModIframe");
+  if(d.episodes&&d.episodes.length>0){
+    vEps.style.display="block";
+    vEpsList.innerHTML="";
+    d.episodes.forEach(function(ep,i){
+      var btn=document.createElement("button");
+      btn.className="v-eps-btn"+(i===0?" on":"");
+      btn.textContent=ep.num;
+      btn.onclick=function(){
+        document.querySelectorAll(".v-eps-btn").forEach(function(b){b.classList.remove("on");});
+        btn.classList.add("on");
+        iframe.src=ep.vimeo+"&autoplay=1";
+      };
+      vEpsList.appendChild(btn);
+    });
+  }else{vEps.style.display="none";}
+
+  if(d.vimeo||(d.episodes&&d.episodes.length>0)){
+    vModVideo.style.display="none";
+    iframe.style.display="block";
+    var vUrl=d.episodes?d.episodes[0].vimeo:d.vimeo;
+    iframe.src=vUrl+"&autoplay=1";
+    vModPoster.classList.add("hide");
+  }else{
+    iframe.style.display="none";
+    vModVideo.style.display="block";
+    vModVideo.src=d.video;
+    vModVideo.load();
+  }
+  vMod.classList.add("on");
+  document.body.style.overflow="hidden";
+  if(!d.vimeo&&!(d.episodes&&d.episodes.length>0)){
+    setTimeout(function(){vModVideo.play().catch(function(){});},300);
+  }
+}
+
+function closeModal(){
+  vMod.classList.remove("on");
+  vModVideo.pause();
+  vModVideo.src="";
+  var iframe=document.getElementById("vModIframe");
+  if(iframe)iframe.src="";
+  document.body.style.overflow="";
+}
+
+vModClose.addEventListener("click",closeModal);
+vMod.addEventListener("click",function(e){if(e.target===vMod)closeModal();});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&vMod.classList.contains("on"))closeModal();});
+
+// Bind clicks
+document.querySelectorAll("[data-project]").forEach(function(el){
+  el.addEventListener("click",function(){
+    openModal(parseInt(this.dataset.project));
+  });
+});
+
+// WeChat
+document.addEventListener("WeixinJSBridgeReady",function(){
+  document.querySelectorAll("video").forEach(function(v){
+    v.setAttribute("x5-video-player-type","h5");
+    v.setAttribute("x5-video-player-fullscreen","false");
+    v.setAttribute("x5-video-orientation","portraint");
+  });
+},false);
+
+})();
+</script>
+</body>
+</html>
